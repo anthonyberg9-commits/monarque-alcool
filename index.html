@@ -101,10 +101,8 @@
   }
 
   .chips{
-    display:flex; gap:8px; overflow-x:auto; margin-top:14px; padding-bottom:2px;
-    scrollbar-width:none;
+    display:flex; flex-wrap:wrap; row-gap:8px; column-gap:8px; margin-top:14px;
   }
-  .chips::-webkit-scrollbar{ display:none; }
   .chips + .chips{ margin-top:8px; }
   .chip{
     flex:0 0 auto;
