@@ -210,11 +210,11 @@
   }
   .blk-text:last-child{ margin-bottom:0; }
 
-  .empty-state, .landing{
+  .empty-state{
     text-align:center; padding:60px 20px; color:var(--text-faint);
   }
-  .empty-state .big, .landing .big{ font-size:2rem; margin-bottom:10px; opacity:0.8; }
-  .empty-state p, .landing p{ font-size:0.9rem; max-width:360px; margin:6px auto 0; line-height:1.5; }
+  .empty-state .big{ font-size:2rem; margin-bottom:10px; opacity:0.8; }
+  .empty-state p{ font-size:0.9rem; max-width:360px; margin:6px auto 0; line-height:1.5; }
 
   @media (max-width:480px){
     h1{ font-size:1.3rem; }
@@ -247,10 +247,6 @@
 </header>
 
 <main>
-  <div class="landing" id="landing">
-    <div class="big">🥃</div>
-    <p>Tape une recherche ou choisis une catégorie ci-dessus pour parcourir les 208 spiritueux de la carte.</p>
-  </div>
   <div class="count" id="count"></div>
   <div class="results" id="results"></div>
   <div class="empty-state" id="empty" style="display:none;">
@@ -465,18 +461,15 @@ function render(){
   const resultsEl = document.getElementById('results');
   const emptyEl = document.getElementById('empty');
   const countEl = document.getElementById('count');
-  const landingEl = document.getElementById('landing');
 
   const searchStarted = !!(query.trim() || activeCategory || activePriceRange);
 
   if(!searchStarted){
-    landingEl.style.display='block';
     countEl.style.display='none';
     resultsEl.innerHTML='';
     emptyEl.style.display='none';
     return;
   }
-  landingEl.style.display='none';
   countEl.style.display='block';
 
   countEl.textContent = list.length + (list.length>1 ? ' résultats' : ' résultat');
