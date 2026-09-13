@@ -350,7 +350,8 @@ function parseConstraints(q){
 }
 
 /* ---------- catégories ---------- */
-const CATEGORIES = [...new Set(PRODUCTS.map(p=>p.category))];
+const CATEGORIES = [...new Set(PRODUCTS.map(p=>p.category))]
+  .sort((a,b) => (a==='Sans alcool') - (b==='Sans alcool')); // "Sans alcool" toujours en dernier
 
 /* préparation index de recherche */
 const indexed = PRODUCTS.map(p=>{
