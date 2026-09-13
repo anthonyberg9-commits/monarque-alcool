@@ -547,7 +547,11 @@ function render(){
   }).join('');
 
   resultsEl.querySelectorAll('.card').forEach(el=>{
-    el.addEventListener('click', ()=> el.classList.toggle('expanded'));
+    el.addEventListener('click', ()=>{
+      const wasExpanded = el.classList.contains('expanded');
+      resultsEl.querySelectorAll('.card.expanded').forEach(c => c.classList.remove('expanded'));
+      if(!wasExpanded) el.classList.add('expanded');
+    });
   });
 }
 
