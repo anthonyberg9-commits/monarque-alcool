@@ -1,4 +1,4 @@
-const CACHE_NAME = 'carte-alcools-v2';
+const CACHE_NAME = 'carte-alcools-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -24,14 +24,15 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Réseau d'abord : sert toujours la version la plus fraîche quand il y a du réseau,
+// et met le cache à jour au passage. Ne retombe sur le cache que hors-ligne. Ainsi,
+// une mise à jour du site n'exige plus de changer CACHE_NAME à chaque déploiement.
 self.addEventListener('fetch', (event) => {
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request).then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        return response;
-      }).catch(() => cached);
-    })
+    fetch(event.request).then((response) => {
+      const copy = response.clone();
+      caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+      return response;
+    }).catch(() => caches.match(event.request))
   );
 });
