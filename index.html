@@ -296,9 +296,11 @@ const SYNONYMS = [
 function expandTerm(t){
   const out = new Set([t]);
   for(const group of SYNONYMS){
-    if(group.some(g => g.includes(t) || t.includes(g))){
-      group.forEach(g=>out.add(g));
-    }
+    // en dehors d'une égalité exacte, n'élargit que si les deux mots sont assez longs :
+    // sinon "gingembre" (arôme) déclenchait tout le groupe "gin" (spiritueux) via un
+    // simple `includes`, un faux positif sur un terme court.
+    const hit = group.some(g => g === t || (Math.min(g.length, t.length) >= 4 && (g.includes(t) || t.includes(g))));
+    if(hit) group.forEach(g=>out.add(g));
   }
   return [...out];
 }
@@ -351,35 +353,77 @@ function parseConstraints(q){
 const CATEGORIES = [...new Set(PRODUCTS.map(p=>p.category))];
 
 /* préparation index de recherche */
-const indexed = PRODUCTS.map(p=>({
-  ...p,
-  nName: norm(p.name),
-  nCategory: norm(p.category),
-  nDesc: norm(p.blocks.map(b=>b.text).join(' '))
-}));
+const indexed = PRODUCTS.map(p=>{
+  const nName = norm(p.name);
+  return {
+    ...p,
+    nName,
+    nCategory: norm(p.category),
+    nDesc: norm(p.blocks.map(b=>b.text).join(' ')),
+    nameWords: nName.split(' ').filter(Boolean)
+  };
+});
 
 /* ---------- scoring ---------- */
 function escapeRe(s){
   return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
 }
-// regex sur mots entiers uniquement : "gin" ne doit pas matcher "gingembre"
+// regex sur mots entiers : un terme court (< 5 lettres, ex "gin" ou "amer") ne doit
+// matcher qu'un mot exact (± un simple pluriel), pour ne pas déborder sur "gingembre"
+// ou "americano" via les groupes de synonymes. À partir de 5 lettres, le terme
+// complète le mot ("cogna" -> "cognac", "cognacs") pour suivre la frappe en direct.
 function termRegex(term, flags){
   const t = term.trim();
   const hasSpace = t.includes(' ');
   const esc = escapeRe(t).replace(/ +/g,'\\s+');
-  const suffix = hasSpace ? '' : 's?'; // tolère un pluriel simple sur un terme d'un seul mot
+  const suffix = hasSpace ? '' : (t.length >= 5 ? '\\w*' : 's?');
   return new RegExp('\\b' + esc + suffix + '\\b', flags || '');
 }
 function wordMatch(text, term){
   return termRegex(term).test(text);
 }
 
+/* ---------- tolérance aux fautes de frappe (nom du produit uniquement) ---------- */
+function levenshtein(a, b){
+  if(a === b) return 0;
+  const al = a.length, bl = b.length;
+  if(al === 0) return bl;
+  if(bl === 0) return al;
+  let prev = new Array(bl+1);
+  for(let j=0;j<=bl;j++) prev[j] = j;
+  for(let i=1;i<=al;i++){
+    const cur = [i];
+    for(let j=1;j<=bl;j++){
+      const cost = a[i-1]===b[j-1] ? 0 : 1;
+      cur[j] = Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+cost);
+    }
+    prev = cur;
+  }
+  return prev[bl];
+}
+function fuzzyNameMatch(nameWords, term){
+  if(term.length < 5) return false; // trop court : trop de faux positifs (et sensible aux mots ajoutés par les synonymes)
+  const threshold = term.length <= 6 ? 1 : 2;
+  for(const w of nameWords){
+    if(w.length < 3) continue;
+    if(Math.abs(w.length - term.length) > threshold) continue;
+    if(levenshtein(w, term) <= threshold) return true;
+  }
+  return false;
+}
+
+// La complétion de mot et la tolérance aux fautes de frappe se concentrent sur le nom
+// du produit (là où une faute de frappe est la plus probable et la plus gênante). La
+// description reste un signal d'arrière-plan comme avant (poids plus faible, sans
+// complétion ni fautes de frappe tolérées) : elle continue de faire remonter les
+// recherches par arôme ("floral", "fumé"...), qui restent au cœur de l'app.
 function score(product, terms){
   let s = 0;
   for(const t of terms){
     if(!t || t.length < 2) continue;
-    const nameHit = wordMatch(product.nName, t);
-    if(nameHit) s += product.nName.startsWith(t) ? 8 : 5;
+    if(wordMatch(product.nName, t)) s += product.nName.startsWith(t) ? 8 : 5;
+    else if(fuzzyNameMatch(product.nameWords, t)) s += 4;
+
     if(wordMatch(product.nCategory, t)) s += 3;
     if(wordMatch(product.nDesc, t)) s += 1;
   }
